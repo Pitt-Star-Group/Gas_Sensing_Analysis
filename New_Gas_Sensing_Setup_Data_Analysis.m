@@ -8,7 +8,6 @@ Material = 'P3-TiO2';
 Media = 'Air';
 Analyte = 'Acetone';
 Chip_ID = 'P3-TiO2-1, P3-TiO2-2';
-Working_Devices = 21;
 
 %Experimental Parameters
 
@@ -16,11 +15,18 @@ DAQ_Interval = 1; %Time delay between each measurement cycle in seconds.
 Exposure_Time = 5; %Duration of the analyte exposure
 Purge_Time = 10; %Duration of the purge
 Exposure_Time_Points = [60; 75; 90; 105; 120; 135; 150; 165; 180; 195; 210; 225; 240;];
-Exposure_Concentrations = [1; 1; 1; 2.5; 5; 7.5; 10; 100; 100; 100; 250; 400; 573; 90];
+Exposure_Concentrations = [1; 1; 1; 2.5; 5; 10; 100; 100; 100; 250; 400; 573; 90];
+Exposures = size(Exposure_Concentrations, 1);
 
+%Verifies that the number of exposure time points match with number of
+%exposures
+if size(Exposure_Time_Points,1) ~= size(Exposure_Concentrations,1)
+    throw(MException('Exposure_Times_Points and Exposure_Concentrations do not correspond'));
+end
+    
 %Include any additional experimental details.
 
-Experiment_Details = '3x 1 ppm, 2.5 ppm, 5 ppm, 7.5 ppm, 10 ppm, 3x 100 ppm, 250 ppm, 400 ppm, 573 ppm, 90% RH at Room Temp';
+Experiment_Details = '3x 1 ppm, 2.5 ppm, 5 ppm, 10 ppm, 3x 100 ppm, 250 ppm, 400 ppm, 573 ppm, 90% RH at Room Temp';
 
 %Set the output file root name.
 
@@ -31,23 +37,26 @@ Output_File_Name = 'Analysis iT';
 %devices. The start and end rows indicate the range of rows that correspond 
 %to 1 IVg plot measurement.
 
-Raw_Experimental_Data = importdata('2018-05-11 - P3-TiO2 Pd Pt Iso-sol Purus Nano Acetone and Humidity Sensing 2 Analysis.xlsx');
-Organized_Experimental_Data = Raw_Experimental_Data.data(:,17:17 + Working_Devices);
-Data_Points = size(Experimental_Data.data,1);
+Raw_SourceMeter_Data =  importdata('2018-05-11 - P3-TiO2 Pd Pt Iso-sol Purus Nano Acetone and Humidity Sensing 2 Analysis.xlsx');
+%Raw_MFC_Data =          importdata('2018-05-11 - P3-TiO2 Pd Pt Iso-sol Purus Nano Acetone and Humidity Sensing 2 MFC.xlsx');
 
-x_time = Experimental_Data.data(:,1);
-x_linspace = linspace(1,Data_Points,Data_Points);
+Working_Devices_Count = size(Raw_SourceMeter_Data.data,2)-1;
 
-A = Experimental_Data.data(:,2);
-B = Experimental_Data.data(:,3);
-C = Experimental_Data.data(:,3);
-D = Experimental_Data.data(:,3);
+%Creates parameters for the table to insert in respone and recovery data
 
-Response_Start = 36035;
-Response_End = 36235;
+Rows = Exposures+1;
+Columns = Working_Devices_Count+1;
+Column_Names = cell([1,Columns]);
+Column_Names{1,1} = {'Concentration'};
 
-Recovery_Start = 36376;
-Recovery_End = 37800;
+%for count1 = 1:Columns
+%    Column_Names = {Column_Names{1, count1
+
+%Sensing_Data = table('Size', [Exposures,Working_Devices_Count+2],
+%Data_Points = size(Experimental_Data.data,1);
+
+%x_time = Experimental_Data.data(:,1);
+%x_linspace = linspace(1,Data_Points,Data_Points);
 
 %A_Response_1 = Experimental_Data.data(Response_Start:Response_End,2);
 %A_Response_Change = Experimental_Data.data(Response_Start:Response_End,2)-Experimental_Data.data(Response_Start,2);
