@@ -7,7 +7,7 @@ cd(Directory);
 Material = 'P3-TiO2';
 Media = 'Air';
 Analyte = 'Acetone';
-Chip_ID = 'P3-TiO2-1, P3-TiO2-2';
+Chip_ID = {'TiO2-1', 'TiO2-2'};
 
 %Experimental Parameters
 
@@ -37,22 +37,19 @@ Output_File_Name = 'Analysis iT';
 %devices. The start and end rows indicate the range of rows that correspond 
 %to 1 IVg plot measurement.
 
-Raw_SourceMeter_Data =  importdata('2018-05-11 - P3-TiO2 Pd Pt Iso-sol Purus Nano Acetone and Humidity Sensing 2 Analysis.xlsx');
+Raw_SourceMeter_Data =  importdata('2018-05-10 - P3-TiO2 Acetone and Humidity Sensing 1 Electrical.xlsx');
 %Raw_MFC_Data =          importdata('2018-05-11 - P3-TiO2 Pd Pt Iso-sol Purus Nano Acetone and Humidity Sensing 2 MFC.xlsx');
 
-Working_Devices_Count = size(Raw_SourceMeter_Data.data,2)-1;
+Chip_Count = size(Chip_ID, 2);
+Devices_Count = size(Raw_SourceMeter_Data.data,2)-1;
+
+Sensing_Data = table(Raw_SourceMeter_Data.data);
 
 %Creates parameters for the table to insert in respone and recovery data
 
 Rows = Exposures+1;
-Columns = Working_Devices_Count+1;
-Column_Names = cell([1,Columns]);
-Column_Names{1,1} = {'Concentration'};
+Columns = size(Raw_SourceMeter_Data.textdata,2)+1;
 
-%for count1 = 1:Columns
-%    Column_Names = {Column_Names{1, count1
-
-%Sensing_Data = table('Size', [Exposures,Working_Devices_Count+2],
 %Data_Points = size(Experimental_Data.data,1);
 
 %x_time = Experimental_Data.data(:,1);
