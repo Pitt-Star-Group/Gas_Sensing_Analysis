@@ -1,6 +1,6 @@
 %Type out file directory
 
-Directory = 'C:\Users\seani\Box Sync\Graduate School\Research\Data\Sensor\New Gas Sensing';
+Directory = 'C:\Users\Sean\Box Sync\Graduate School\Research\Data\Sensor\New Gas Sensing';
 cd(Directory);
 %Fill out information below.
 
@@ -12,14 +12,16 @@ Chip_ID = {'TiO2-1', 'TiO2-2'};
 %Experimental Parameters
 
 DAQ_Interval = 1; %Time delay between each measurement cycle in seconds.
-Exposure_Time = 5; %Duration of the analyte exposure
-Purge_Time = 10; %Duration of the purge
-Exposure_Time_Points = [60; 75; 90; 105; 120; 135; 150; 165; 180; 195; 210; 225; 240;];
+Background_Collection_Period = 5; %Time before MFC starts
+Exposure_Period = 5; %Duration of the analyte exposure in minutes
+Purge_Period = 10; %Duration of the purge in minutes
+Exposure_Time_Points = [60; 75; 90; 105; 120; 135; 150; 165; 180; 195; 210; 225; 240]; %
 Exposure_Concentrations = [1; 1; 1; 2.5; 5; 10; 100; 100; 100; 250; 400; 573; 90];
 Exposures = size(Exposure_Concentrations, 1);
 
 %Verifies that the number of exposure time points match with number of
 %exposures
+
 if size(Exposure_Time_Points,1) ~= size(Exposure_Concentrations,1)
     throw(MException('Exposure_Times_Points and Exposure_Concentrations do not correspond'));
 end
@@ -45,13 +47,17 @@ Devices_Count = size(Raw_SourceMeter_Data.data,2)-1;
 
 Sensing_Data.Device_ID = Raw_SourceMeter_Data.textdata(1,:);
 Sensing_Data.Full_Data = Raw_SourceMeter_Data.data;
+Sensing_Data.Concentrations = Exposure_Concentrations;
 
-for
-
-%Creates parameters for the table to insert in respone and recovery data
-
-Rows = Exposures+1;
-Columns = size(Raw_SourceMeter_Data.textdata,2)+1;
+for count1 = 1:Exposures
+    
+    Field_Variable = compose("Exposure%d", count1);
+    Exposure_Start = fix((Exposure_Time_Points(count1)+5)*60/DAQ_Interval+3);
+    Purge_End = fix(Exposure_Start + (Exposure_Period + Purge_Period)*60/DAQ_Interval);
+    Sensing_Data.(Field_Variable) = Sensing_Data.Full_Data(Exposure_Start:Purge_End,:);
+    Sensing_Data.(Field_Variable)(:,1) = Sensing_Data.(Field_Variable)(:,1)-Sensing_Data.(Field_Variable)(1,1);
+    
+end
 
 %Data_Points = size(Experimental_Data.data,1);
 
@@ -66,8 +72,13 @@ Columns = size(Raw_SourceMeter_Data.textdata,2)+1;
 %A_Recovery_Change = Experimental_Data.data(Recovery_Start:Recovery_End,2)-Experimental_Data.data(Response_Start,2);
 %A_Recovery_Time = (Experimental_Data.data(Recovery_Start:Recovery_End,1)-Experimental_Data.data(Recovery_Start,1))/1000+1;
 
-%figure
-%plot(A)
+X = Sensing_Data.Exposure1(:,1);
+Y = Sensing_Data.Exposure1(:,2);
+X1 = X(1:100);
+Y1 = Y(1:100);
+
+figure
+plot(X1,Y1)
 
 %figure
 %plot(A_Response_Change)
