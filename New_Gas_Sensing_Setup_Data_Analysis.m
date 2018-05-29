@@ -1,6 +1,6 @@
 %Type out file directory
 
-Directory = 'C:\Users\seani\Box Sync\Graduate School\Research\Data\Sensor\New Gas Sensing\Analysis';
+Directory = 'C:\Users\seani\Box Sync\Graduate School\Research\Data\Sensor\New Gas Sensing';
 cd(Directory);
 %Fill out information below.
 
@@ -43,7 +43,10 @@ Raw_SourceMeter_Data =  importdata('2018-05-10 - P3-TiO2 Acetone and Humidity Se
 Chip_Count = size(Chip_ID, 2);
 Devices_Count = size(Raw_SourceMeter_Data.data,2)-1;
 
-Sensing_Data = table(Raw_SourceMeter_Data.data);
+Sensing_Data.Device_ID = Raw_SourceMeter_Data.textdata(1,:);
+Sensing_Data.Full_Data = Raw_SourceMeter_Data.data;
+
+for
 
 %Creates parameters for the table to insert in respone and recovery data
 
