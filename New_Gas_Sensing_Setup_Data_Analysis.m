@@ -1,6 +1,6 @@
 %Type out file directory
 
-Directory = 'C:\Users\seani\Box Sync\Graduate School\Research\Data\Sensor\New Gas Sensing';
+Directory = 'C:\Users\Sean\Box Sync\Graduate School\Research\Data\Sensor\New Gas Sensing';
 cd(Directory);
 %Fill out information below.
 
@@ -12,7 +12,7 @@ Chip_ID = {'TiO2-1', 'TiO2-2'};
 %Experimental Parameters
 
 DAQ_Interval = 1; %Time delay between each measurement cycle in seconds.
-Background_Collection_Period = 5 + 3/60; %Time before MFC starts
+Background_Collection_Period = 5 + 7/60; %Time before MFC starts
 Exposure_Period = 5; %Duration of the analyte exposure in minutes
 Purge_Period = 10; %Duration of the purge in minutes
 Exposure_Time_Points = [60; 75; 90; 105; 120; 135; 150; 165; 180; 195; 210; 225; 240]; %
@@ -32,7 +32,7 @@ Experiment_Details = '3x 1 ppm, 2.5 ppm, 5 ppm, 10 ppm, 3x 100 ppm, 250 ppm, 400
 
 %Set the output file root name.
 
-Output_File_Name = 'Analysis iT';
+Output_File_Name = 'Fitting Analysis';
 
 %Inputs all the raw data from working devices into a structure matrix,
 %where the rows indicate the experiment order and columns are functioning
@@ -46,7 +46,9 @@ Chip_Count = size(Chip_ID, 2);
 Devices_Count = size(Raw_SourceMeter_Data.data,2)-1;
 
 Sensing_Data.Device_ID = Raw_SourceMeter_Data.textdata(1,:);
-Sensing_Data.Full_Data = Raw_SourceMeter_Data.data;
+Sensing_Data.Time = Raw_SourceMeter_Data.data(:,1);
+Sensing_Data.Current = Raw_SourceMeter_Data.data(:,2:end);
+Sensing_Data.Normalized_Current_Change = (Sensing_Data.Current-Sensing_Data.Current(1,:))./Sensing_Data.Current(1,:);
 Sensing_Data.Concentrations = Exposure_Concentrations;
 
 for count1 = 1:Exposures
@@ -57,85 +59,65 @@ for count1 = 1:Exposures
     
     %Sets point of exposure to t = 0 sec; normalizes current to relative
     %change from t = 0
-    Data_Normalization = Sensing_Data.Full_Data(Exposure_Start:Purge_End,:);
-    Sensing_Data.(Field_Variable).Normalized_Data = Data_Normalization;
-    Sensing_Data.(Field_Variable).Normalized_Data(:,1) = Data_Normalization(:,1)-Data_Normalization(1,1);
-    Sensing_Data.(Field_Variable).Normalized_Data(:,2:end) = (Data_Normalization(:,2:end)-Data_Normalization(1,2:end))./Data_Normalization(1,2:end);
+    Current_Normalization = Sensing_Data.Current(Exposure_Start:Purge_End,:);
+    Sensing_Data.(Field_Variable).Time = Sensing_Data.Time(Exposure_Start:Purge_End,1)-Sensing_Data.Time(Exposure_Start,1);
+    Sensing_Data.(Field_Variable).Normalized_Current_Change = (Current_Normalization(:,:)-Current_Normalization(1,:))./Current_Normalization(1,:);
     
     %Fits exposure and response to separate biexponentials.
     Exposure_End_Index = Exposure_Period*60/DAQ_Interval;
     
-    Normalized_Response = Data_Normalization(1:Exposure_End_Index,:)-Data_Normalization(1,:);
-    Normalized_Response = Normalized_Response(:,2:end)./Data_Normalization(1,2:end);
+    Normalized_Response_Time = Sensing_Data.(Field_Variable).Time(1:Exposure_End_Index,1)-Current_Normalization(1,:);
+    Normalized_Response_Current = (Current_Normalization(1:Exposure_End_Index,:)-Current_Normalization(1,:))./Current_Normalization(1,:);
     
     Recovery_Start_Index = Exposure_End_Index + 1;
     
-    Normalized_Recovery = Data_Normalization(Recovery_Start_Index:end,:)-Data_Normalization(Recovery_Start_Index,:);
-    Normalized_Recovery = Normalized_Recovery(:,2:end)./Data_Normalization(Recovery_Start_Index,2:end);
+    Normalized_Recovery_Time = Sensing_Data.(Field_Variable).Time(Recovery_Start_Index:end,1)-Sensing_Data.(Field_Variable).Time(1,1);
+    Normalized_Recovery_Current = Current_Normalization(Recovery_Start_Index:end,:);
     
-    Sensing_Data.(Field_Variable).Fitting_Data = cell(3,Devices_Count);
+    Fit_Options = fitoptions('exp2','MaxFunEvals',1000,'MaxIter',1000);
+    
+    Sensing_Data.(Field_Variable).Fitting_Data = cell(6,Devices_Count);
     
     for count2 = 1:Devices_Count
         try
             
-            [Response_Fit, Goodness_of_Fit, Algo_Info] = fit(Normalized_Response(:,1),Normalized_Response(:,count2+1),'exp2');
+            [Response_Fit, Goodness_of_Fit1, Algo_Info1] = fit(Normalized_Response_Time(:,1),Normalized_Response_Current(:,count2),'exp2');
+            [Recovery_Fit, Goodness_of_Fit2, Algo_Info2] = fit(Normalized_Recovery_Time(:,1),Normalized_Recovery_Current(:,count2),'exp2');
             
         catch
             
             warning('Data for a broken device is attempting to be processed');
             Response_Fit = 0;
-            Goodness_of_Fit = 0;
-            Algo_Info = 0;
+            Goodness_of_Fit1 = 0;
+            Algo_Info1 = 0;
+            Recovery_Fit = 0;
+            Goodness_of_Fit2 = 0;
+            Algo_Info2 = 0;
             
         end
             
         Sensing_Data.(Field_Variable).Fitting_Data{1,count2} = Response_Fit;
-        Sensing_Data.(Field_Variable).Fitting_Data{2,count2} = Goodness_of_Fit;
-        Sensing_Data.(Field_Variable).Fitting_Data{3,count2} = Algo_Info;
+        Sensing_Data.(Field_Variable).Fitting_Data{2,count2} = Goodness_of_Fit1;
+        Sensing_Data.(Field_Variable).Fitting_Data{3,count2} = Algo_Info1;
+        Sensing_Data.(Field_Variable).Fitting_Data{4,count2} = Recovery_Fit;
+        Sensing_Data.(Field_Variable).Fitting_Data{5,count2} = Goodness_of_Fit2;
+        Sensing_Data.(Field_Variable).Fitting_Data{6,count2} = Algo_Info2;
         
     end    
 end
 
-%Data_Points = size(Experimental_Data.data,1);
+X1 = Sensing_Data.Exposure1.Time(:,1);
+Y1_1 = Sensing_Data.Exposure1.Normalized_Current_Change(:,1);
+Y1_2 = Sensing_Data.Exposure1.Normalized_Current_Change(:,8);
 
-%x_time = Experimental_Data.data(:,1);
-%x_linspace = linspace(1,Data_Points,Data_Points);
-
-%A_Response_1 = Experimental_Data.data(Response_Start:Response_End,2);
-%A_Response_Change = Experimental_Data.data(Response_Start:Response_End,2)-Experimental_Data.data(Response_Start,2);
-%A_Response_Time = (Experimental_Data.data(Response_Start:Response_End,1)-Experimental_Data.data(Response_Start,1))/1000;
-
-%A_Recovery_1 = Experimental_Data.data(Recovery_Start:Recovery_End,2);
-%A_Recovery_Change = Experimental_Data.data(Recovery_Start:Recovery_End,2)-Experimental_Data.data(Response_Start,2);
-%A_Recovery_Time = (Experimental_Data.data(Recovery_Start:Recovery_End,1)-Experimental_Data.data(Recovery_Start,1))/1000+1;
-
-Chip1_Dev_A_X = Sensing_Data.Exposure7.Normalized_Data(:,1);
-Chip1_Dev_A_Y = Sensing_Data.Exposure7.Normalized_Data(:,2);
-X1 = Chip1_Dev_A_X(1:100);
-Y1 = Chip1_Dev_A_Y(1:100);
-
-Chip2_Dev_A_X = Sensing_Data.Exposure7.Normalized_Data(:,1);
-Chip2_Dev_A_Y = Sensing_Data.Exposure7.Normalized_Data(:,8);
-X2 = Chip2_Dev_A_X(1:100);
-Y2 = Chip2_Dev_A_Y(1:100);
-
-X3 = Sensing_Data.Full_Data(:,1)-Sensing_Data.Full_Data(1,1);
-Y3_1 = (Sensing_Data.Full_Data(:,2)-Sensing_Data.Full_Data(1,2))/Sensing_Data.Full_Data(1,2);
-Y3_2 = (Sensing_Data.Full_Data(:,8)-Sensing_Data.Full_Data(1,8))/Sensing_Data.Full_Data(1,8);
+X3 = Sensing_Data.Time(:,1);
+Y3_1 = Sensing_Data.Normalized_Current_Change(:,1);
+Y3_2 = Sensing_Data.Normalized_Current_Change(:,8);
 
 figure
-plot(X3,Y3_1,X3,Y3_2)
+plot(X3,Y3_2)
 
-[fit1, gof, output] = fit(X1,Y1,'exp2');
 figure
-plot(fit1,X1,Y1)
+plot(X1,Y1_2)
 
-fit2 = fit(X2,Y2,'exp2');
-figure
-plot(fit2,X2,Y2)
-
-%figure
-%plot(A_Response_Change)
-
-%figure
-%plot(A_Recovery_Change)
+save(Output_File_Name);
