@@ -1,6 +1,6 @@
 %Type out file directory
 
-Directory = 'C:\Users\seani\Box Sync\Graduate School\Research\Data\Sensor\New Gas Sensing';
+Directory = 'C:\Users\Sean\Box Sync\Graduate School\Research\Data\Sensor\New Gas Sensing';
 cd(Directory);
 %Fill out information below.
 
@@ -72,7 +72,7 @@ for count1 = 1:Exposures
     %Sets point of exposure to t = 0 sec; normalizes current to relative
     %change from t = 0
     
-    Exposure_Start_Index = 17;
+    Exposure_Start_Index = 37;
     Exposure_End_Index = Exposure_Start_Index + 200;
     
     Sensing_Data.(Field_Variable).Time = Time_Normalization(:,1) - Time_Normalization(Exposure_Start_Index,1);
@@ -155,35 +155,86 @@ end
 
 Exposure_Analysis = 1;
 
-for count2 = 1:Devices_Count
+fileID = fopen([Output_File_Name, '.txt'], 'w');
+fprintf(fileID, '%s\t', 'Material:', Material, 'Analyte:', Analyte, 'Media:', Media, 'Chip_ID:', Chip_ID{1,1}, 'Experimental Details:', Experiment_Details);
+fprintf(fileID, '%s\n', '');
+fprintf(fileID, '%s\t', 'Time(s)');
+
+for count1 = 1:Devices_Count
+
+    Field_Variable = compose("Exposure%d", Exposure_Analysis);
     
-    Field_Variable = compose("Exposure%d", count2);
+    Figure_Name = compose("Device %d - Exposure %d - %.1f ppm", count1, 1, Sensing_Data.Concentrations(Exposure_Analysis));
     
-    Figure_Name = compose("Device %d - Exposure %d - %.1f ppm", count2, 1, Sensing_Data.Concentrations(Exposure_Analysis));
+    fprintf(fileID, '%s\t', Figure_Name);
+    fprintf(fileID, '%e\t', Sensing_Data.(Field_Variable).Fitting_Data{2, count1});
+    fprintf(fileID, '%e\t', Sensing_Data.(Field_Variable).Fitting_Data{6, count1});
+    
+end
+
+fprintf(fileID, '%s\t', 'Time(s)');
+
+for count1 = 1:Devices_Count
+    
+    fprintf(fileID, '%s\t', 'Normalized Current');
+    fprintf(fileID, '%s\t', 'Response Current');
+    fprintf(fileID, '%s\t', 'Recovery Fit');
+
+end
+
+fprintf(fileID, '%s\n', '');
+Combined_Fit_Data = Sensing_Data.(Field_Variable).Time;
+
+for count1 = 1:Devices_Count
+    
+    Field_Variable = compose("Exposure%d", Exposure_Analysis);
+    
+    Figure_Name = compose("Device %d - Exposure %d - %.1f ppm", count1, Exposure_Analysis, Sensing_Data.Concentrations(Exposure_Analysis));
     figure('Name', Figure_Name)
     
-    plot(Sensing_Data.(Field_Variable).Time, Sensing_Data.(Field_Variable).Normalized_Current_Change(:,count2))
+    plot(Sensing_Data.(Field_Variable).Time, Sensing_Data.(Field_Variable).Normalized_Current_Change(:,count1))
     hold on
+    
+    x_response = Sensing_Data.(Field_Variable).Time(Exposure_Start_Index:Exposure_End_Index) - Sensing_Data.(Field_Variable).Time(Exposure_Start_Index);
+    a_response = Sensing_Data.(Field_Variable).Fitting_Data{2,count1}(1);
+    b_response = Sensing_Data.(Field_Variable).Fitting_Data{2,count1}(2);
+    c_response = Sensing_Data.(Field_Variable).Fitting_Data{2,count1}(3);
+    d_response = Sensing_Data.(Field_Variable).Fitting_Data{2,count1}(4);
+    
+    y_response = a_response*exp(b_response*x_response) + c_response*exp(d_response*x_response);
+    
+    x_res_offset = Sensing_Data.(Field_Variable).Time(Exposure_Start_Index:Exposure_End_Index);
+    y_res_offset = y_response - (y_response(1) - Sensing_Data.(Field_Variable).Normalized_Current_Change(Exposure_Start_Index, count1));
+    
+    plot(x_res_offset, y_res_offset)
+    
+    x_recovery = Sensing_Data.(Field_Variable).Time(Recovery_Start_Index:Recovery_End_Index)-Sensing_Data.Exposure1.Time(Recovery_Start_Index);
+    a_recovery = Sensing_Data.(Field_Variable).Fitting_Data{6,count1}(1);
+    b_recovery = Sensing_Data.(Field_Variable).Fitting_Data{6,count1}(2);
+    c_recovery = Sensing_Data.(Field_Variable).Fitting_Data{6,count1}(3);
+    d_recovery = Sensing_Data.(Field_Variable).Fitting_Data{6,count1}(4);
+    
+    y_recovery = a_recovery*exp(b_recovery*x_recovery) + c_recovery*exp(d_recovery*x_recovery);
+    
+    x_rec_offset = Sensing_Data.(Field_Variable).Time(Recovery_Start_Index:Recovery_End_Index);
+    y_rec_offset = y_recovery - (y_recovery(1) - Sensing_Data.(Field_Variable).Normalized_Current_Change(Recovery_Start_Index, count1));
 
-    plot(Sensing_Data.(Field_Variable).{1,count2})
-    
-    x = Sensing_Data.(Field_Variable).Time(Recovery_Start_Index:end)-Sensing_Data.Exposure1.Time(Recovery_Start_Index);
-    a = Sensing_Data.(Field_Variable).Fitting_Data{6,count2}(1);
-    b = Sensing_Data.(Field_Variable).Fitting_Data{6,count2}(2);
-    c = Sensing_Data.(Field_Variable).Fitting_Data{6,count2}(3);
-    d = Sensing_Data.(Field_Variable).Fitting_Data{6,count2}(4);
-    
-    y = a*exp(b*x) + c*exp(d*x);
-    
-    x_offset = Sensing_Data.(Field_Variable).Time(Recovery_Start_Index:end);
-    y_offset = y-(y(1)-Sensing_Data.(Field_Variable).Normalized_Current_Change(Recovery_Start_Index,count2));
-
-    plot(x_offset, y_offset)
+    plot(x_rec_offset, y_rec_offset)
     hold off
     
-    fileID = fopen([Output_File_Name, ' ', Chip_ID, ' Device ', Working_Devices(count1), '.txt'], 'w');
+    Fit_Data = zeros(size(Time_Normalization,1),1);
+    Fit_Data(Exposure_Start_Index:Exposure_End_Index) = y_res_offset;
+    Fit_Data(Recovery_Start_Index:Recovery_End_Index) = y_rec_offset;
     
-    fprintf(fileID, '%s\t', 'Material:', Material, 'Analyte:', Analyte, 'Solvent:', Media, 'Chip_ID:', Chip_ID, 'Device ID:', Working_Devices(count1), 'Experimental Details:', Experiment_Details);
+    Combined_Fit_Data = [Combined_Fit_Data, Fit_Data];
+    
+end
+
+for count1 = 1:size(Combined_Fit_Data,1)
+    
+    fprintf(fileID, '%e\t', Combined_Fit_Data(count1, :));
     fprintf(fileID, '%s\n', '');
     
 end
+
+fclose('all');
