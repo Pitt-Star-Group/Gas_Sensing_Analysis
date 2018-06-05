@@ -12,15 +12,16 @@ Chip_ID = {'TiO2-1', 'TiO2-2'};
 %Experimental Parameters
 
 DAQ_Interval = 1; %Time delay between each measurement cycle in seconds.
-Background_Collection_Period = 5; %Time before MFC starts
+Background_Collection_Period = 4.5; %Time before MFC starts
 Exposure_Period = 5; %Duration of the analyte exposure in minutes
 Purge_Period = 10; %Duration of the purge in minutes
-Exposure_Time_Points = [60; 75; 90; 105; 120; 135; 150; 165; 180; 195; 210; 225; 240]; %
+Exposure_Time_Points = [60; 75; 90; 105; 120; 135; 150; 165; 180; 195; 210; 225; 360]; %
 Exposure_Concentrations = [1; 1; 1; 2.5; 5; 10; 100; 100; 100; 250; 400; 573; 90];
 Exposures = size(Exposure_Concentrations, 1);
 
-%Fitting_Offset = [
-
+Exposure_Fitting_Offset = [
+    
+];
 %Verifies that the number of exposure time points match with number of
 %exposures
 
@@ -51,7 +52,7 @@ Sensing_Data.Device_ID = Raw_SourceMeter_Data.textdata(1,2:end);
 Sensing_Data.Time = Raw_SourceMeter_Data.data(:,1);
 Sensing_Data.Current = Raw_SourceMeter_Data.data(:,2:end);
 Sensing_Data.Normalized_Current_Change = (Sensing_Data.Current-Sensing_Data.Current(1,:))./Sensing_Data.Current(1,:);
-Sensing_Data.Slope_Change = Sensing_Data.Current(2:end,:)-Sensing_Data.Current(1:end-1,:);
+Sensing_Data.Normalized_Slope_Change = (Sensing_Data.Current(2:end,:)-Sensing_Data.Current(1:end-1,:))./Sensing_Data.Current(1,:);
 
 Sensing_Data.Concentrations = Exposure_Concentrations;
 
@@ -74,17 +75,17 @@ for count1 = 1:Exposures
     Exposure_Start_Index = 17;
     Exposure_End_Index = Exposure_Start_Index + 200;
     
-    Sensing_Data.(Field_Variable).Time = Time_Normalization(:,1)-Time_Normalization(Exposure_Start_Index,1);
-    Sensing_Data.(Field_Variable).Normalized_Current_Change = (Current_Normalization(:,:)-Current_Normalization(Exposure_Start_Index,:))./Current_Normalization(Exposure_Start_Index,:);
+    Sensing_Data.(Field_Variable).Time = Time_Normalization(:,1) - Time_Normalization(Exposure_Start_Index,1);
+    Sensing_Data.(Field_Variable).Normalized_Current_Change = Current_Normalization(:,:)./Current_Normalization(Exposure_Start_Index,:);
     
     Normalized_Response_Time = Sensing_Data.(Field_Variable).Time(Exposure_Start_Index:Exposure_End_Index,1)-Sensing_Data.(Field_Variable).Time(Exposure_Start_Index,1);
-    Normalized_Response_Current = (Current_Normalization(Exposure_Start_Index:Exposure_End_Index,:)-Current_Normalization(Exposure_Start_Index,:))./Current_Normalization(Exposure_Start_Index,:);
+    Normalized_Response_Current = Current_Normalization(Exposure_Start_Index:Exposure_End_Index,:)./Current_Normalization(Exposure_Start_Index,:);
     
-    Recovery_Start_Index = Exposure_Start_Index + Exposure_Period * 60 / DAQ_Interval + 21;
+    Recovery_Start_Index = Exposure_Start_Index + Exposure_Period * 60 / DAQ_Interval + 15;
     Recovery_End_Index = Recovery_Start_Index + 200;
     
     Normalized_Recovery_Time = Sensing_Data.(Field_Variable).Time(Recovery_Start_Index:Recovery_End_Index,1)-Sensing_Data.(Field_Variable).Time(Recovery_Start_Index,1);
-    Normalized_Recovery_Current = (Current_Normalization(Recovery_Start_Index:Recovery_End_Index,:)-Current_Normalization(Recovery_Start_Index,:))./Current_Normalization(Recovery_Start_Index,:);
+    Normalized_Recovery_Current = Current_Normalization(Recovery_Start_Index:Recovery_End_Index,:)./Current_Normalization(Recovery_Start_Index,:);
     
     Fit_Options = fitoptions('exp2','MaxFunEvals',1000,'MaxIter',1000);
     
@@ -128,37 +129,61 @@ end
 
 figure('Name','Full Data')
 plot(Sensing_Data.Time,Sensing_Data.Normalized_Current_Change(:,:))
-
-legend('1D','1B','1A','1C','2D','2B','2A','2C')
+legend('1D','1B','1C','2D','2B','2A','2C')
 
 figure('Name','Slope Data')
-plot(Sensing_Data.Time(1:end-1),Sensing_Data.Slope_Change(:,6))
+plot(Sensing_Data.Time(1:end-1), Sensing_Data.Normalized_Slope_Change)
+legend('1D','1B','1C','2D','2B','2A','2C')
+%{
+for count1 = 1:Exposures
+    
+    Field_Variable = compose("Exposure%d", count1);
+    
+    for count2 = 1:Devices_Count
+        
+        Figure_Name = compose("Device %d - Exposure %d - %.1f ppm", count2, count1, Sensing_Data.Concentrations(count1));
+        figure('Name', Figure_Name)
+        plot(Sensing_Data.(Field_Variable).Time, Sensing_Data.(Field_Variable).Normalized_Current_Change(:,count2))
+        hold on
 
-figure('Name','Exposure 1 Full')
-plot(Sensing_Data.Exposure1.Time, Sensing_Data.Exposure1.Normalized_Current_Change(:,6))
+        plot(Sensing_Data.(Field_Variable).Fitting_Data{1,count2}, Sensing_Data.(Field_Variable).Time(Exposure_Start_Index:end), Sensing_Data.(Field_Variable).Normalized_Current_Change(Exposure_Start_Index:end,count2))
+        hold off
+    
+    end
+end
+%}
 
-figure('Name','Exposure 1 Response')
-plot(Sensing_Data.Exposure1.Time, Sensing_Data.Exposure1.Normalized_Current_Change(:,6))
+Exposure_Analysis = 1;
 
-hold on
+for count2 = 1:Devices_Count
+    
+    Field_Variable = compose("Exposure%d", count2);
+    
+    Figure_Name = compose("Device %d - Exposure %d - %.1f ppm", count2, 1, Sensing_Data.Concentrations(Exposure_Analysis));
+    figure('Name', Figure_Name)
+    
+    plot(Sensing_Data.(Field_Variable).Time, Sensing_Data.(Field_Variable).Normalized_Current_Change(:,count2))
+    hold on
 
-plot(Sensing_Data.Exposure1.Fitting_Data{1,6}, Sensing_Data.Exposure1.Time(Exposure_Start_Index:end), Sensing_Data.Exposure1.Normalized_Current_Change(Exposure_Start_Index:end,6))
+    plot(Sensing_Data.(Field_Variable).{1,count2})
+    
+    x = Sensing_Data.(Field_Variable).Time(Recovery_Start_Index:end)-Sensing_Data.Exposure1.Time(Recovery_Start_Index);
+    a = Sensing_Data.(Field_Variable).Fitting_Data{6,count2}(1);
+    b = Sensing_Data.(Field_Variable).Fitting_Data{6,count2}(2);
+    c = Sensing_Data.(Field_Variable).Fitting_Data{6,count2}(3);
+    d = Sensing_Data.(Field_Variable).Fitting_Data{6,count2}(4);
+    
+    y = a*exp(b*x) + c*exp(d*x);
+    
+    x_offset = Sensing_Data.(Field_Variable).Time(Recovery_Start_Index:end);
+    y_offset = y-(y(1)-Sensing_Data.(Field_Variable).Normalized_Current_Change(Recovery_Start_Index,count2));
 
-hold off
-
-figure('Name','Exposure 1 Recovery')
-plot(Sensing_Data.Exposure1.Time(301:901),Sensing_Data.Exposure1.Normalized_Current_Change(301:901,6))
-
-hold on
-x = Sensing_Data.Exposure1.Time(301:901)-Sensing_Data.Exposure1.Time(301);
-a = Sensing_Data.Exposure1.Fitting_Data{2,6}(1);
-b = Sensing_Data.Exposure1.Fitting_Data{2,6}(2);
-c = Sensing_Data.Exposure1.Fitting_Data{2,6}(3);
-d = Sensing_Data.Exposure1.Fitting_Data{2,6}(4);
-y = a*exp(b*x) + c*exp(d*x);
-x_offset = Sensing_Data.Exposure1.Time(301:901);
-y_offset = -y + Sensing_Data.Exposure1.Normalized_Current_Change(301,6);
-
-plot(x_offset, y_offset)
-
-hold off
+    plot(x_offset, y_offset)
+    hold off
+    
+    fileID = fopen([Output_File_Name, ' ', Chip_ID, ' Device ', Working_Devices(count1), '.txt'], 'w');
+    
+    fprintf(fileID, '%s\t', 'Material:', Material, 'Analyte:', Analyte, 'Solvent:', Media, 'Chip_ID:', Chip_ID, 'Device ID:', Working_Devices(count1), 'Experimental Details:', Experiment_Details);
+    fprintf(fileID, '%s\n', '');
+    
+end
