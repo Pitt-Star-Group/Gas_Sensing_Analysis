@@ -1,7 +1,7 @@
 %Type out file directory and sensor conductivity data.
 
-Directory = 'C:\Users\Sean\Box Sync\Graduate School\Research\Data\Sensor\New Gas Sensing\THC Sensor\2018-04-30 to 05-04 - Cannabix Sensors Calibration';
-SourceMeter_File = 'Iso-sol CT 1 Breath Compounds Bubbler Voff Electrical.xlsx';
+Directory = 'C:\Users\seani\Box Sync\Graduate School\Research\Data\Sensor\New Gas Sensing\THC Sensor\2018-04-30 to 05-04 - Cannabix Sensors Calibration';
+SourceMeter_File = 'Iso-sol CT 1 Blank Ethanol Bubbler Voff Electrical.xlsx';
 
 cd(Directory);
 Raw_SourceMeter_Data = importdata(SourceMeter_File);
@@ -9,13 +9,14 @@ Raw_SourceMeter_Data = importdata(SourceMeter_File);
 %Show plot? yes/no
 
 To_Plot = 'yes';
+To_Save = 'no';
 
 %Fill out information below.
 
 Material = 'Iso-sol'; %Sensor chemistry/material used
 Chip_ID = 'Iso-sol CT 1'; %Names of chips used
 Media = 'Air'; %Carrier gas
-Analyte = '100%RH, 0.1% Acetone 0.1% Ethanol'; %Analyte(s) exposed to the sensor
+Analyte = 'THC in ethanol'; %Analyte(s) exposed to the sensor
 
 %Experimental Parameters
 
@@ -33,7 +34,7 @@ Exposure_Fitting_Offset = [
 
 %Include any additional experimental details.
 
-Experiment_Details = 'Breath simulation bubbler 5 min on 10 min recovery';
+Experiment_Details = 'THC in ethanol bubbler 5 min on 10 min recovery';
 
 %Set the output file root name.
 
@@ -85,7 +86,7 @@ for count1 = 1:Exposures
     Normalized_Response_Time = Sensing_Data.(Field_Variable).Time(Exposure_Start_Index:Exposure_End_Index,1)-Sensing_Data.(Field_Variable).Time(Exposure_Start_Index,1);
     Normalized_Response_Current = Current_Normalization(Exposure_Start_Index:Exposure_End_Index,:)./Current_Normalization(Exposure_Start_Index,:);
     
-    Recovery_Start_Index = 451;
+    Recovery_Start_Index = 371;
     Recovery_End_Index = Recovery_Start_Index + 250;
     
     Normalized_Recovery_Time = Sensing_Data.(Field_Variable).Time(Recovery_Start_Index:Recovery_End_Index, 1)-Sensing_Data.(Field_Variable).Time(Recovery_Start_Index, 1);
@@ -95,8 +96,11 @@ for count1 = 1:Exposures
     
     Sensing_Data.(Field_Variable).Plots = cell(3,Devices_Count);
     Sensing_Data.(Field_Variable).Fitting_Data = cell(8,Devices_Count);
+    Sensing_Data.(Field_Variable).Response_Recovery = cell(2,Devices_Count);    
     
     for count2 = 1:Devices_Count
+        
+        Normalized_Response = (Normalized_Response_Current(1,count2) - Normalized_Response_Current(200,count2)) ./ Normalized_Response_Current(1,count2);
         
         try
             
@@ -105,7 +109,7 @@ for count1 = 1:Exposures
             
         catch
             
-            Message = join(['Response data for ', 'Device', Devices(count2), Field_Variable, 'cannot be fitted.']);
+            Message = join(['Response data for', 'Device', Devices(count2), Field_Variable, 'cannot be fitted.']);
             warning(Message);
             
             Response_Fit = 0;
@@ -114,6 +118,8 @@ for count1 = 1:Exposures
             Algo_Info1 = 0;
                         
         end
+        
+        Normalized_Recovery = (Normalized_Recovery_Current(1,count2) - Normalized_Recovery_Current(200,count2)) ./ Normalized_Recovery_Current(1,count2);
         
         try
             
@@ -131,7 +137,10 @@ for count1 = 1:Exposures
             Algo_Info2 = 0;
             
         end
-            
+        
+        Sensing_Data.(Field_Variable).Response_Recovery{1,count2} = Normalized_Response;
+        Sensing_Data.(Field_Variable).Response_Recovery{2,count2} = Normalized_Recovery;
+        
         Sensing_Data.(Field_Variable).Fitting_Data{1,count2} = Response_Fit;
         Sensing_Data.(Field_Variable).Fitting_Data{2,count2} = Response_Coeff;
         Sensing_Data.(Field_Variable).Fitting_Data{3,count2} = Goodness_of_Fit1;
@@ -278,67 +287,70 @@ if strcmp(To_Plot, 'yes')
 
 end
 
-fileID = fopen(['Analysis - Fit Coeff - ', SourceMeter_File, '.txt'], 'w');
-fprintf(fileID, '%s\t', 'Material:', Material, 'Analyte:', Analyte, 'Media:', Media, 'Chip_ID:', Chip_ID, 'Experimental Details:', Experiment_Details, 'File Name', SourceMeter_File);
-fprintf(fileID, '%s\n', '');
-fprintf(fileID, '%s\t', 'Response');
+if strcmp(To_Plot, 'yes')
 
-for count1 = 1:Devices_Count
-        
-    Column_Names = compose("Device %s", Devices(count1));
-    fprintf(fileID, '%s\t', Column_Names);
-    fprintf(fileID, '%s\t', '', '', '');
-        
-    
-end
-
-fprintf(fileID, '%s\n', '');
-fprintf(fileID, '%s\t', 'Exposure # and Conc');
-
-for count1 = 1:Devices_Count
-    
-   fprintf(fileID, '%s\t', 'a','b','c','d'); 
-    
-end
-
-fprintf(fileID, '%s\n', '');
-
-for count1 = 1:Exposures
-    
-    fprintf(fileID, '%.1f\t', Exposure_Concentrations(count1));
-    
-    Field_Variable = compose("Exposure%d", count1);
-    
-    for count2 = 1:Devices_Count
-        
-        fprintf(fileID, '%e\t', Sensing_Data.(Field_Variable).Fitting_Data{2, count2});
-        
-    end
-    
+    fileID = fopen(['Analysis - Fit Coeff - ', SourceMeter_File, '.txt'], 'w');
+    fprintf(fileID, '%s\t', 'Material:', Material, 'Analyte:', Analyte, 'Media:', Media, 'Chip_ID:', Chip_ID, 'Experimental Details:', Experiment_Details, 'File Name', SourceMeter_File);
     fprintf(fileID, '%s\n', '');
-    
-end
+    fprintf(fileID, '%s\t', 'Response');
 
-fprintf(fileID, '%s\n', '');
-fprintf(fileID, '%s\n', 'Recovery');
-
-for count1 = 1:Exposures
-    
-    fprintf(fileID, '%.1f\t', Exposure_Concentrations(count1));
-    
-    Field_Variable = compose("Exposure%d", count1);
-    
-    for count2 = 1:Devices_Count
+    for count1 = 1:Devices_Count
         
-        fprintf(fileID, '%e\t', Sensing_Data.(Field_Variable).Fitting_Data{6, count2});
-        
+        Column_Names = compose("Device %s", Devices(count1));
+        fprintf(fileID, '%s\t', Column_Names);
+        fprintf(fileID, '%s\t', '', '', '');
+            
     end
-    
-    fprintf(fileID, '%s\n', '');
-    
-end
 
-fclose('all');
+    fprintf(fileID, '%s\n', '');
+    fprintf(fileID, '%s\t', 'Exposure # and Conc');
+
+    for count1 = 1:Devices_Count
+    
+       fprintf(fileID, '%s\t', 'a','b','c','d'); 
+    
+    end
+
+    fprintf(fileID, '%s\n', '');
+
+    for count1 = 1:Exposures
+    
+        fprintf(fileID, '%.1f\t', Exposure_Concentrations(count1));
+    
+        Field_Variable = compose("Exposure%d", count1);
+    
+        for count2 = 1:Devices_Count
+        
+            fprintf(fileID, '%e\t', Sensing_Data.(Field_Variable).Fitting_Data{2, count2});
+        
+        end
+    
+        fprintf(fileID, '%s\n', '');
+    
+    end
+
+    fprintf(fileID, '%s\n', '');
+    fprintf(fileID, '%s\n', 'Recovery');
+
+    for count1 = 1:Exposures
+    
+        fprintf(fileID, '%.1f\t', Exposure_Concentrations(count1));
+    
+        Field_Variable = compose("Exposure%d", count1);
+    
+        for count2 = 1:Devices_Count
+        
+            fprintf(fileID, '%e\t', Sensing_Data.(Field_Variable).Fitting_Data{6, count2});
+        
+        end
+    
+        fprintf(fileID, '%s\n', '');
+    
+    end
+
+    fclose('all');
+
+end
 
 Saveas = [Output_File_Name, SourceMeter_File, '.m'];
 
