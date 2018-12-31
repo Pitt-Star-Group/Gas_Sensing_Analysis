@@ -1,32 +1,32 @@
 %Show plot? yes/no
 
-To_Plot = 'yes';
+To_Plot = 'no';
 To_Save = 'yes';
-Multiple_File = 'yes';
+Multiple_File = 'no';
 
 %Type out file directory and sensor conductivity data.
 
-Directory = 'C:\Users\Sean\Box Sync\Graduate School\Research\Data\Sensor\New Gas Sensing\THC Sensor\2018-04-30 to 05-04 - Cannabix Sensors Calibration';
-SourceMeter_File = 'Iso-sol CT 5 Blank Ethanol Bubbler Voff Electrical.xlsx';
+Directory = 'C:\Users\Sean\Box Sync\Graduate School\Research\Data\Sensor\New Gas Sensing\THC Sensor\2018-10-11 - Iso THC EtOH 50 mV Voff';
+SourceMeter_File = '2018-10-31 - THC IPA Wash 1 Hr 120C 1 Day Drawer 50 mV Voff During Post Exp 26 SMU.xlsx';
 
 cd(Directory);
 Raw_SourceMeter_Data = importdata(SourceMeter_File);
 
 %Fill out information below.
 
-Material = 'Iso-sol'; %Sensor chemistry/material used
-Chip_ID = 'Iso-sol CT 5'; %Names of chips used
+Material = 'IsoSol S-100'; %Sensor chemistry/material used
+Chip_ID = 'IsoSol-3 7-17-18'; %Names of chips used
 Media = 'Air'; %Carrier gas
-Analyte = 'Blank ethanol vapor'; %Analyte(s) exposed to the sensor
+Analyte = 'THC Ethanol Bubbler Vapor'; %Analyte(s) exposed to the sensor
 
 %Experimental Parameters
 
 DAQ_Interval = 1; %Time delay between each measurement cycle in seconds.
 Background_Collection_Period = 0; %Time before MFC starts
-Exposure_Period = 5; %Duration of the analyte exposure in minutes
-Purge_Period = 10; %Duration of the purge in minutes
-Exposure_Time_Points = [5; 20; 35]; %
-Exposure_Concentrations = [100; 100; 100];
+Exposure_Period =           [0.5;   0.5;    0.5;    1.0;    2.0;    5.0;    10.0;   30.0;   60.0;   120.0;] %Duration of the analyte exposure in minutes
+Purge_Period =              [59.5;  59.5;   59.5;   59.0;   58.0;   55.0;   50.0;   60.0;   60.0;   60.0;] %Duration of the purge in minutes
+Exposure_Time_Points =      [60.0;  120;    180;    240;    300;    360;    420;    510;    630;    810;]; %Time of analyte exposure
+Exposure_Concentrations =   [100;   100;    100;    100;    100;    100;    100;    100;    100     100;];
 Exposures = size(Exposure_Concentrations, 1);
 
 Exposure_Fitting_Offset = [
@@ -35,7 +35,7 @@ Exposure_Fitting_Offset = [
 
 %Include any additional experimental details.
 
-Experiment_Details = 'Blank ethanol vapor 5 min exposure 10 min purge';
+Experiment_Details = 'THC ethanol 3x 0.5, 1, 2, 5, 10, 30, 60, 120 min exposured followed by ~60 min purge';
 
 %Set the output file root name.
 
@@ -51,12 +51,13 @@ if size(Exposure_Time_Points,1) ~= size(Exposure_Concentrations,1)
 end
 
 Chip_Count = size(Chip_ID, 2);
-Devices = 'DBAC';
+Devices = 'ABCD';
 Devices_Count = size(Raw_SourceMeter_Data.data,2)-1;
 
 Sensing_Data.Device_ID = Raw_SourceMeter_Data.textdata(1,2:end);
-Sensing_Data.Time = Raw_SourceMeter_Data.data(:,1);
-Sensing_Data.Current = Raw_SourceMeter_Data.data(:,2:end);
+Sensing_Data.Time = Raw_SourceMeter_Data.data(2:end,1);
+Sensing_Data.Current = Raw_SourceMeter_Data.data(2:end,2:end);
+Sensing_Data.Normalized_Current = Sensing_Data.Current./Sensing_Data.Current(1,:);
 Sensing_Data.Normalized_Current_Change = (Sensing_Data.Current-Sensing_Data.Current(1,:))./Sensing_Data.Current(1,:);
 Sensing_Data.Normalized_Slope_Change = (Sensing_Data.Current(2:end,:)-Sensing_Data.Current(1:end-1,:))./Sensing_Data.Current(1,:);
 
@@ -78,8 +79,8 @@ for count1 = 1:Exposures
     %Sets point of exposure to t = 0 sec; normalizes current to relative
     %change from t = 0
     
-    Exposure_Start_Index = 62;
-    Exposure_End_Index = Exposure_Start_Index + 200;
+    Exposure_Start_Index = 66;
+    Exposure_End_Index = Exposure_Start_Index + 250;
     
     Sensing_Data.(Field_Variable).Time = Time_Normalization(:,1) - Time_Normalization(1,1);
     Sensing_Data.(Field_Variable).Normalized_Current_Change = Current_Normalization(:,:)./Current_Normalization(1,:);
@@ -90,7 +91,7 @@ for count1 = 1:Exposures
     Sensing_Data.(Field_Variable).Normalized_Response_Time = Normalized_Response_Time;
     Sensing_Data.(Field_Variable).Normalized_Response_Current = Normalized_Response_Current;
     
-    Recovery_Start_Index = 371;
+    Recovery_Start_Index = 381;
     Recovery_End_Index = Recovery_Start_Index + 250;
     
     Normalized_Recovery_Time = Sensing_Data.(Field_Variable).Time(Recovery_Start_Index:Recovery_End_Index, 1)-Sensing_Data.(Field_Variable).Time(Recovery_Start_Index, 1);
@@ -222,11 +223,11 @@ if strcmp(To_Plot, 'yes')
     
     figure('Name','Full Data')
     plot(Sensing_Data.Time,Sensing_Data.Normalized_Current_Change(:,:))
-    legend('1D','1B','1A','1C')
+    legend(Devices(1),Devices(2))
 
     figure('Name','Slope Data')
     plot(Sensing_Data.Time(1:end-1), Sensing_Data.Normalized_Slope_Change)
-    legend('1D','1B','1A','1C')
+    legend(Devices(1),Devices(2))
 
     for count1 = 1:Devices_Count
     
@@ -253,6 +254,42 @@ end
 
 if strcmp(To_Save, 'yes')
 
+    fileID = fopen(['Analysis - Full Data - ', SourceMeter_File, '.txt'], 'w');
+    fprintf(fileID, '%s\t', 'Material:', Material, 'Analyte:', Analyte, 'Media:', Media, 'Chip_ID:', Chip_ID, 'Experimental Details:', Experiment_Details);
+    fprintf(fileID, '%s\n', '');
+    fprintf(fileID, '%s\t', 'Time (s)');
+    fprintf(fileID, '%s\t', 'Time (min)');
+    
+    for count1 = 1:Devices_Count
+        
+        Device_ID = ['Dev ', Devices(count1), ' - Normalized Current'];
+        fprintf(fileID, '%s\t', Device_ID);
+        fprintf(fileID, '%s\t', 'Rel. Change in Current');
+        fprintf(fileID, '%s\t', 'Rel. Change in Slope');
+        
+    end
+    
+    fprintf(fileID, 's\n', '');
+    
+    for count1 = 1:size(Sensing_Data.Normalized_Slope_Change,1)
+        
+        fprintf(fileID, '%d\t', Sensing_Data.Time(count1));
+        fprintf(fileID, '%d\t', Sensing_Data.Time(count1)/60);
+        
+        for count2 = 1:Devices_Count
+            
+            fprintf(fileID, '%e\t', Sensing_Data.Normalized_Current(count1,count2));
+            fprintf(fileID, '%e\t', Sensing_Data.Normalized_Current_Change(count1,count2));
+            fprintf(fileID, '%e\t', Sensing_Data.Normalized_Slope_Change(count1,count2));
+            
+        end
+        
+        fprintf(fileID, '\n', '');
+        
+    end
+    
+    fclose('all');
+    
     fileID = fopen([Output_File_Name, SourceMeter_File, '.txt'], 'w');
     fprintf(fileID, '%s\t', 'Material:', Material, 'Analyte:', Analyte, 'Media:', Media, 'Chip_ID:', Chip_ID, 'Experimental Details:', Experiment_Details);
     fprintf(fileID, '%s\n', '');
@@ -302,8 +339,8 @@ if strcmp(To_Save, 'yes')
             
             Fit_Data = zeros(size(Time_Normalization, 1), 3);
             Fit_Data(1:end, 1) = Sensing_Data.(Field_Variable).Normalized_Current_Change(:, count1);
-            Fit_Data(Exposure_Start_Index:Exposure_End_Index, 2) = Sensing_Data.(Field_Variable).y_res_offset;
-            Fit_Data(Recovery_Start_Index:Recovery_End_Index, 3) = Sensing_Data.(Field_Variable).y_rec_offset;
+            Fit_Data(Exposure_Start_Index:Exposure_End_Index, 2) = Sensing_Data.(Field_Variable).y_res_offset(:,count1);
+            Fit_Data(Recovery_Start_Index:Recovery_End_Index, 3) = Sensing_Data.(Field_Variable).y_rec_offset(:,count1);
     
             Combined_Fit_Data = [Combined_Fit_Data, Fit_Data];
             
@@ -380,7 +417,7 @@ if strcmp(To_Save, 'yes')
     end
 
     fclose('all');
-
+    
     Saveas = [Output_File_Name, SourceMeter_File, '.m'];
 
     save(Saveas);
