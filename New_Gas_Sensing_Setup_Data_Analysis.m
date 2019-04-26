@@ -3,8 +3,9 @@
 To_Plot = 'no';
 To_Save = 'yes';
 Multiple_File = 'no';
+Device_Count = 28;
 
-%Type out file directory and sensor conductivity data.
+%Fill out file directory and sensor conductivity data.
 
 Directory = 'C:\Users\Sean\Box Sync\Graduate School\Research\Data\Sensor\New Gas Sensing\THC Sensor\2018-10-11 - Iso THC EtOH 50 mV Voff';
 SourceMeter_File = '2018-10-31 - THC IPA Wash 1 Hr 120C 1 Day Drawer 50 mV Voff During Post Exp 26 SMU.xlsx';
@@ -21,21 +22,19 @@ Analyte = 'THC Ethanol Bubbler Vapor'; %Analyte(s) exposed to the sensor
 
 %Experimental Parameters
 
-DAQ_Interval = 1; %Time delay between each measurement cycle in seconds.
+DAQ_Interval = 2; %Time delay between each measurement cycle in seconds.
 Background_Collection_Period = 0; %Time before MFC starts
-Exposure_Period =           [0.5;   0.5;    0.5;    1.0;    2.0;    5.0;    10.0;   30.0;   60.0;   120.0;] %Duration of the analyte exposure in minutes
-Purge_Period =              [59.5;  59.5;   59.5;   59.0;   58.0;   55.0;   50.0;   60.0;   60.0;   60.0;] %Duration of the purge in minutes
-Exposure_Time_Points =      [60.0;  120;    180;    240;    300;    360;    420;    510;    630;    810;]; %Time of analyte exposure
-Exposure_Concentrations =   [100;   100;    100;    100;    100;    100;    100;    100;    100     100;];
+Exposure_Period =           [5;     5;      5;      5;      5;      5;      5;      5;      5;]; %Duration of the analyte exposure in minutes
+Purge_Period =              [5;     5;      5;      5;      5;      5;      5;      5;      5;]; %Duration of the purge in minutes
+Exposure_Time_Points =      [30;    40;     50;     60;     70;     80;     90;     100;    110;]; %Time of analyte exposure
+Exposure_Concentrations =   [25;    25;     25;     50;     75;     100;    5000;   10000;  20000;];
 Exposures = size(Exposure_Concentrations, 1);
 
-Exposure_Fitting_Offset = [
-    
-];
+Exposure_Fitting_Offset = [];
 
 %Include any additional experimental details.
 
-Experiment_Details = 'THC ethanol 3x 0.5, 1, 2, 5, 10, 30, 60, 120 min exposured followed by ~60 min purge';
+Experiment_Details = 'Pd-IsoSol 2019-02-01&08 H2 Sensing Stability Test';
 
 %Set the output file root name.
 
